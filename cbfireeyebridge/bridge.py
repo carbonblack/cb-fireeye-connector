@@ -76,7 +76,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         if 'data_dir' in kwargs:
             self.data_dir = kwargs.pop('data_dir')
         else:
-            self.data_dir = "/usr/share/cb/integrations/carbonblack_fireeye_bridge/received_alerts"
+            self.data_dir = "/usr/share/cb/integrations/fireeye/received_alerts"
 
         CbIntegrationDaemon.__init__(self, name, configfile=configfile, **kwargs)
         self.flask_feed = cbint.utils.flaskfeed.FlaskFeed(__name__, use_wgsi_body_helper=True)
@@ -86,9 +86,9 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         self.display_name = self.feed_name
 
         self.feed_synchronizer = None
-        self.directory = os.path.dirname(os.path.realpath(__file__))
-        self.cb_image_path = "/content/carbonblack.png"
-        self.integration_image_path = "/content/fireeye.png"
+        self.directory = "/usr/share/cb/integrations/fireeye"
+        self.cb_image_path = "/carbonblack.png"
+        self.integration_image_path = "/fireeye.png"
         self.json_feed_path = "/fireeye/json"
 
         feed_metadata = cbint.utils.feed.generate_feed(self.feed_name, summary="FireEye on-premise IOC feed",

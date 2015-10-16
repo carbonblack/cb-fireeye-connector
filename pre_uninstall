@@ -1,5 +1,0 @@
-#!/bin/sh
-
-/etc/init.d/cb-fireeye-bridge stop
-
-chkconfig --del cb-fireeye-bridge

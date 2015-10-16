@@ -3,15 +3,17 @@
 import os
 import sys
 
-sys.path.insert(0, "../../lib/cbapi/client_apis/python/src/cbapi/")
-sys.path.insert(0, "../../lib/src/")
-
 import cbfireeyebridge.bridge
 import cbfireeyebridge.version
 
 if __name__ == "__main__":
-    name = "carbonblack_fireeye_bridge"
-    daemon = cbfireeyebridge.bridge.CarbonBlackFireEyeBridge(name, os.path.abspath("root/etc/cb/integrations/carbonblack_fireeye_bridge/carbonblack_fireeye_bridge.conf"))
+    # set the path to the CA certificate PEM file to our local cache
+    cacert_pem_path = "/usr/share/cb/integrations/fireeye/cacert.pem"
+    if os.path.isfile(cacert_pem_path):
+        os.environ["REQUESTS_CA_BUNDLE"] = cacert_pem_path
+
+    name = "fireeye"
+    daemon = cbfireeyebridge.bridge.CarbonBlackFireEyeBridge(name, "/etc/cb/integrations/fireeye/connector.conf")
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
             daemon.start()
