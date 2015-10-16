@@ -14,26 +14,9 @@ import cbint.utils.filesystem
 import cbint.utils.cbserver
 from cbint.utils.daemon import CbIntegrationDaemon
 import copy
+import re
 
-
-'''
-NOTE: this code was never actually called... wtf?
-
-    def expire_reports(self):
-        """
-        remove expired alerts from feed
-        """
-        if not self.bridge_options.has_key('alert_ttl'):
-            return
-
-        reports_to_expire = []
-        for report in self.feed['reports']:
-            if int(time.time()) - int(float(report['timestamp'])) > self.bridge_options['alert_ttl']:
-                reports_to_expire.append(report)
-
-        for report in reports_to_expire:
-            self.feed['reports'].remove(report)
-'''
+digit_re = re.compile("(\d+)")
 
 
 class FeedReportBase(object):
@@ -90,18 +73,31 @@ class DedupFeedIOCReports(FeedReportBase):
 class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
 
     def __init__(self, name, configfile, **kwargs):
+        if 'data_dir' in kwargs:
+            self.data_dir = kwargs.pop('data_dir')
+        else:
+            self.data_dir = "/usr/share/cb/integrations/carbonblack_fireeye_bridge/received_alerts"
+
         CbIntegrationDaemon.__init__(self, name, configfile=configfile, **kwargs)
         self.flask_feed = cbint.utils.flaskfeed.FlaskFeed(__name__, use_wgsi_body_helper=True)
         self.bridge_options = {}
         self.debug = False
         self.feed_name = "FireEye"
         self.display_name = self.feed_name
-        self.feed = None
+
         self.feed_synchronizer = None
         self.directory = os.path.dirname(os.path.realpath(__file__))
         self.cb_image_path = "/content/carbonblack.png"
         self.integration_image_path = "/content/fireeye.png"
         self.json_feed_path = "/fireeye/json"
+
+        feed_metadata = cbint.utils.feed.generate_feed(self.feed_name, summary="FireEye on-premise IOC feed",
+                    tech_data="There are no requirements to share any data with Carbon Black to use this feed.  The underlying IOC data is provided by an on-premise FireEye device",
+                    provider_url="http://www.fireeye.com/", icon_path="%s/%s" % (self.directory,
+                                                                                 self.integration_image_path),
+                    display_name=self.display_name, category="Connectors")
+
+        self.feed = DedupFeedIOCReports(feed_metadata)
 
         self.flask_feed.app.add_url_rule(self.cb_image_path, view_func=self.handle_cb_image_request)
         self.flask_feed.app.add_url_rule(self.integration_image_path, view_func=self.handle_integration_image_request)
@@ -111,7 +107,6 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         self.flask_feed.app.add_url_rule("/fireeye/alert", view_func=self.handle_posted_alert, methods=['POST'])
 
         self.alert_processing_failures = []
-        self.data_dir = "/usr/share/cb/integrations/carbonblack_fireeye_bridge/received_alerts"
         self.score_stats = {}
 
     def on_start(self):
@@ -136,14 +131,6 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         self.cb = cbapi.CbApi(self.bridge_options['carbonblack_server_url'],
                               token=self.bridge_options['carbonblack_server_token'],
                               ssl_verify=sslverify)
-
-        self.logger.debug("generating feed metadata")
-        feed_metadata = cbint.utils.feed.generate_feed(self.feed_name, summary="FireEye on-premise IOC feed",
-                    tech_data="There are no requirements to share any data with Carbon Black to use this feed.  The underlying IOC data is provided by an on-premise FireEye device",
-                    provider_url="http://www.fireeye.com/", icon_path="%s/%s" % (self.directory, self.integration_image_path),
-                    display_name=self.display_name, category="Connectors")
-
-        self.feed = DedupFeedIOCReports(feed_metadata)
 
         self.logger.debug("starting feed synchronizer")
         self.feed_synchronizer = cbint.utils.feed.FeedSyncRunner(self.cb, self.feed_name,
@@ -448,11 +435,17 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
                 # timestamp of the alert
                 #
                 now = int(time.time())
-                then = int(float(alert_filename))
+
+                matches = digit_re.match(alert_filename)
+                if not matches:
+                    self.logger.warn("Saved alert '%s' did not include a valid date-time stamp" % alert_filename)
+                    continue
+
+                then = int(matches.group(1))
 
                 # skip alerts that have expired based on configured ttl
                 #
-                if self.bridge_options.has_key('alert_ttl') and (now - then) > int(self.bridge_options['alert_ttl']):
+                if 'alert_ttl' in self.bridge_options and (now - then) > int(self.bridge_options['alert_ttl']):
                     continue
 
                 # read the alert file from disk and decode it's contents as JSON
@@ -461,7 +454,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
 
                 # process the raw alert data and generate CB-style report dictionaries
                 #
-                reports = self.process_alert(alert, alert_filename)
+                reports = self.process_alert(alert, then)
 
                 # add the new report to the feed
                 #
