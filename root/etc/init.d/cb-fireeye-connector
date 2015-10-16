@@ -10,15 +10,9 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-exec="/usr/share/cb/integrations/carbonblack_fireeye_bridge/carbonblack_fireeye_bridge"
-prog="cb-fireeye-bridge"
-pidfile="/var/run/cb/integrations/carbonblack_fireeye_bridge.pid"
-
-[ -f /etc/cb/cb.conf ] || {
-    echo Carbon Black Enterprise Server setup has not been finalized.
-    echo Run /usr/share/cb/cbinit to initialize the server instance.
-    exit 1
-}
+exec="/usr/share/cb/integrations/fireeye/cb-fireeye-connector"
+prog="cb-fireeye-connector"
+pidfile="/var/run/cb/integrations/fireeye.pid"
 
 lockfile=/var/lock/subsys/$prog
 
