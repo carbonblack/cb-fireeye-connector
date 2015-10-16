@@ -151,7 +151,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
             num_restored = self.restore_alerts()
             if num_restored > 0:
                 self.feed_synchronizer.sync_needed = True
-            self.logger.info("Restored %d alerts from %d on-disk files" % (len(self.feed.generate_feed()['reports']),
+            self.logger.info("Restored %d alerts from %d on-disk files" % (len(self.feed.retrieve_feed()['reports']),
                                                                            num_restored))
 
         self.logger.debug("starting flask")
