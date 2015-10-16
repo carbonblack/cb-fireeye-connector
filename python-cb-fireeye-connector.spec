@@ -37,9 +37,6 @@ rm -rf $RPM_BUILD_ROOT
 %files -f INSTALLED_FILES
 %defattr(-,root,root)
 
-%config
-/etc/cb/integrations/fireeye/connector.conf
-
 %config(noreplace)
 /etc/cb/integrations/fireeye/connector.conf
 
