@@ -1,0 +1,102 @@
+#!/usr/bin/env python
+
+import os
+import sys
+import json
+import time
+import pprint
+import requests
+
+def process_raw_alert(raw_alert, bridge_server, bridge_port):
+    """
+    posts a raw FireEye alert to the Carbon Black bridge server
+    """
+
+    # based on observed FireEye alert traffic, mimic FireEye http request headers
+    # to the extent possible
+    #
+    headers = {}
+
+    # FireEye appears to use curl as a User-Agent
+    #
+    headers['User-Agent'] = 'curl/7.15.5.(x86_64-redhat-linux-gnu) libcurl/7.15.5 OpenSSL/0.9.8b.zlib/1.2.3.libidn/0.6.5'
+
+    headers['Accept'] = '*/*'
+
+    # Content-Length is specified
+    #
+    #headers['Content-Length'] = str(len(raw_alert))
+
+    # Content-Type i sspecified as urlencoded
+    # 
+    headers['Content-Type'] = 'application/x-www-form-urlencoded'
+
+    alert_url = 'http://%s:%s/fireeye/alert' % (bridge_server, bridge_port)
+    response = requests.post(alert_url, headers=headers, data=raw_alert)
+    if response.status_code != 200:
+        raise Exception("Carbon Black Bridge Server failed poll request (code %d)" % (response.status_code,))
+
+def process_raw_ondisk_alerts(alert_directory, bridge_server, bridge_port):
+    """
+    reads raw FireEye-provided alert data from disk and sends to 
+    a Carbon Black bridge server, simulating a real FireEye device
+
+    returns a count of alerts sent to the Carbon Black bridge server
+    """
+
+    alert_count = 0
+
+    # enumerate all files in the provided alert directory
+    # each file should correspond to a archived FireEye alert
+    #
+    for raw_alert_filename in os.listdir(alert_directory):
+       
+        # build accessible name, with path information as required
+        #
+        qualified_raw_alert_filename = "%s/%s" % (alert_directory, raw_alert_filename)
+
+        # skip directories
+        #
+        if os.path.isdir(qualified_raw_alert_filename):
+            continue
+
+        # open the raw FireEye alert file
+        #
+        f = open(qualified_raw_alert_filename)
+        
+        # post the raw alert contents
+        #
+        try:
+            process_raw_alert(f.read(), bridge_server, bridge_port)
+            alert_count = alert_count + 1
+        except:
+            print "-> Unable to process alert '%s'" % (qualified_raw_alert_filename)
+            pass
+
+    return alert_count
+
+if __name__ == '__main__':
+
+    print "-> Fake FireEye Device"
+    print "   -------------------"
+
+    if len(sys.argv) != 4:
+        print "USAGE: fake_fireeye_device IP-or-name-of-fireeye-Bridge Port alerts_directory"
+        sys.exit(0)
+
+    # save off the IP/name and port of the Carbon Black bridge
+    #
+    bridge_ip = sys.argv[1]
+    bridge_port = sys.argv[2]
+
+    # save off the alerts directory
+    # this is where sample alerts are to be found
+    #
+    alerts_directory = sys.argv[3]
+
+    # read all the alerts in the alert directory from disk and post them
+    # to the Carbon Black bridge server
+    #
+    alert_count = process_raw_ondisk_alerts(alerts_directory, bridge_ip, bridge_port)
+
+    print "-> POSTed %d alerts" % (alert_count,)
