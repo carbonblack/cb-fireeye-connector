@@ -15,8 +15,55 @@ import cbint.utils.cbserver
 from cbint.utils.daemon import CbIntegrationDaemon
 import copy
 import re
+import threading
 
 digit_re = re.compile("(\d+)")
+
+
+class FeedSyncRunner(object):
+    def __init__(self, cb_api, feed_name, feed_url, interval=1):
+        self.__cb = cb_api
+        self.__feed_name = feed_name
+        self.__interval = int(interval)
+        self.sync_needed = False
+        self.sync_supported = False
+        self.feed_url = feed_url
+        self.logger = logging.getLogger(__name__)
+
+        if cbint.utils.cbserver.is_server_at_least(self.__cb, "4.1"):
+            self.sync_supported = True
+
+        if self.sync_supported:
+            sync_thread = threading.Thread(target=self.__perform_feed_sync)
+            sync_thread.setDaemon(True)
+            sync_thread.start()
+
+    def __perform_feed_sync(self):
+        while True:
+            time.sleep(self.__interval * 60)
+
+            if self.sync_needed:
+                self.logger.info("synchronizing feed: %s" % self.__feed_name)
+                try:
+                    self.get_or_create_feed()
+                    self.__cb.feed_synchronize(self.__feed_name, False)
+                except:
+                    self.logger.exception("Exception during feed synchronization")
+                else:
+                    self.sync_needed = False
+
+    def get_or_create_feed(self):
+        feed_id = self.__cb.feed_get_id_by_name(self.__feed_name)
+        self.logger.info("Feed id for %s: %s" % (self.__feed_name, feed_id))
+        if not feed_id:
+            self.logger.info("Creating %s feed @ %s for the first time" % (self.__feed_name, self.feed_url))
+            # TODO: clarification of feed_host vs listener_address
+            result = self.__cb.feed_add_from_url(self.feed_url, True, False, False)
+
+            # TODO: defensive coding around these self.cb calls
+            feed_id = result.get('id', 0)
+
+        return feed_id
 
 
 class FeedReportBase(object):
@@ -133,8 +180,11 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
                               ssl_verify=sslverify)
 
         self.logger.debug("starting feed synchronizer")
-        self.feed_synchronizer = cbint.utils.feed.FeedSyncRunner(self.cb, self.feed_name,
-                                                                 self.bridge_options.get('feed_sync_interval', 15))
+        feed_url = "http://%s:%d%s" % (self.bridge_options["feed_host"], int(self.bridge_options["listener_port"]),
+                                       self.json_feed_path)
+
+        self.feed_synchronizer = FeedSyncRunner(self.cb, self.feed_name, feed_url,
+                                                interval=self.bridge_options.get('feed_sync_interval', 1))
         if not self.feed_synchronizer.sync_supported:
             self.logger.warn("feed synchronization is not supported by the associated Carbon Black enterprise server")
 
