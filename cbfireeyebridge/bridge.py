@@ -181,8 +181,9 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
                               ssl_verify=sslverify)
 
         self.logger.debug("starting feed synchronizer")
-        self.feed_url = "http://%s:%d%s" % (self.bridge_options["feed_host"], int(self.bridge_options["listener_port"]),
-                                       self.json_feed_path)
+        self.feed_url = "http://%s:%d%s" % (self.bridge_options.get("feed_host", '127.0.0.1'),
+                                            int(self.bridge_options["listener_port"]),
+                                            self.json_feed_path)
 
         self.feed_synchronizer = FeedSyncRunner(self.cb, self.feed_name, self.feed_url,
                                                 interval=self.bridge_options.get('feed_sync_interval', 1))
@@ -210,7 +211,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
 
     def create_feed(self):
         # TODO: hack to wait until Flask is ready
-        time.sleep(1)
+        time.sleep(10)
         feed_id = self.cb.feed_get_id_by_name(self.feed_name)
         self.logger.info("Feed id for %s: %s" % (self.feed_name, feed_id))
         if not feed_id:
@@ -225,7 +226,10 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         address = self.bridge_options.get('listener_address', '0.0.0.0')
         port = self.bridge_options['listener_port']
         self.logger.info("starting flask server: %s:%s" % (address, port))
-        threading.Thread(target=self.create_feed)
+
+        create_feed_thread = threading.Thread(target=self.create_feed)
+        create_feed_thread.start()
+
         self.flask_feed.app.run(port=port, debug=self.debug,
                                 host=address, use_reloader=False)
 
