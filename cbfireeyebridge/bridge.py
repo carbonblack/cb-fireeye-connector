@@ -4,6 +4,7 @@ import time
 import flask
 import socket
 import logging
+import requests
 
 import cbfireeyebridge.version
 import cbapi
@@ -180,10 +181,10 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
                               ssl_verify=sslverify)
 
         self.logger.debug("starting feed synchronizer")
-        feed_url = "http://%s:%d%s" % (self.bridge_options["feed_host"], int(self.bridge_options["listener_port"]),
+        self.feed_url = "http://%s:%d%s" % (self.bridge_options["feed_host"], int(self.bridge_options["listener_port"]),
                                        self.json_feed_path)
 
-        self.feed_synchronizer = FeedSyncRunner(self.cb, self.feed_name, feed_url,
+        self.feed_synchronizer = FeedSyncRunner(self.cb, self.feed_name, self.feed_url,
                                                 interval=self.bridge_options.get('feed_sync_interval', 1))
         if not self.feed_synchronizer.sync_supported:
             self.logger.warn("feed synchronization is not supported by the associated Carbon Black enterprise server")
@@ -207,10 +208,24 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         self.logger.debug("starting flask")
         self.serve()
 
+    def create_feed(self):
+        # TODO: hack to wait until Flask is ready
+        time.sleep(1)
+        feed_id = self.cb.feed_get_id_by_name(self.feed_name)
+        self.logger.info("Feed id for %s: %s" % (self.feed_name, feed_id))
+        if not feed_id:
+            self.logger.info("Creating %s feed @ %s for the first time" % (self.feed_name, self.feed_url))
+            # TODO: clarification of feed_host vs listener_address
+            result = self.cb.feed_add_from_url(self.feed_url, True, False, False)
+
+            # TODO: defensive coding around these self.cb calls
+            feed_id = result.get('id', 0)
+
     def serve(self):
         address = self.bridge_options.get('listener_address', '0.0.0.0')
         port = self.bridge_options['listener_port']
         self.logger.info("starting flask server: %s:%s" % (address, port))
+        threading.Thread(target=self.create_feed)
         self.flask_feed.app.run(port=port, debug=self.debug,
                                 host=address, use_reloader=False)
 

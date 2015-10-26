@@ -12,7 +12,7 @@ if __name__ == "__main__":
     if os.path.isfile(cacert_pem_path):
         os.environ["REQUESTS_CA_BUNDLE"] = cacert_pem_path
 
-    name = "fireeye"
+    name = "fireeyeconnector"
     daemon = cbfireeyebridge.bridge.CarbonBlackFireEyeBridge(name, "/etc/cb/integrations/fireeye/connector.conf")
     if len(sys.argv) == 2:
         if 'start' == sys.argv[1]:
