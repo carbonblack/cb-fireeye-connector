@@ -1,7 +1,5 @@
-cbapi == 0.8.0
 cbfeeds == 0.8.0
-cbint == 0.8.1
+cbint == 0.8.10
 requests >= 2.7.0
 simplejson
 pyinstaller == 3.1.1
-flask == 0.11.1

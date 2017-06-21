@@ -1,40 +1,12 @@
-__author__ = 'bjohnson'
-#
-#The MIT License (MIT)
-#
-# Copyright (c) 2015 Bit9 + Carbon Black
-#
-# Permission is hereby granted, free of charge, to any person obtaining a copy
-# of this software and associated documentation files (the "Software"), to deal
-# in the Software without restriction, including without limitation the rights
-# to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
-# copies of the Software, and to permit persons to whom the Software is
-# furnished to do so, subject to the following conditions:
-#
-# The above copyright notice and this permission notice shall be included in all
-# copies or substantial portions of the Software.
-#
-# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
-# IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
-# FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
-# AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
-# LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
-# OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
-# SOFTWARE.
-#
-
 from distutils.core import setup
 from distutils.core import Command
 from distutils.command.bdist_rpm import bdist_rpm
 
-from distutils import log
 from distutils.file_util import write_file
 from distutils.util import change_root, convert_path
 
 import os
 from subprocess import call
-
-from cbfireeyebridge import version
 
 
 class bdist_binaryrpm(bdist_rpm):
@@ -126,8 +98,8 @@ class install_cb(Command):
             self.mkpath(dir)
 
             data = os.path.join('dist', scriptname)
-            (out, _) = self.copy_file(data, dir, preserve_mode=True)
-            self.outfiles.append(out)
+            out = self.copy_tree(data, dir, preserve_mode=True)
+            self.outfiles.extend(out)
 
         if self.record:
             outputs = self.get_outputs()
@@ -139,7 +111,6 @@ class install_cb(Command):
                          (self.record, outputs),
                          "writing list of installed files to '%s'" %
                          self.record)
-
 
     def get_inputs(self):
         return self.data_files or []
@@ -166,20 +137,20 @@ data_files.append('scripts/cb-fireeye-connector')
 scripts = {
     'cb-fireeye-connector': {
         'spec': 'cb-fireeye-connector.spec',
-        'dest': '/usr/share/cb/integrations/fireeye/cb-fireeye-connector'
+        'dest': '/usr/share/cb/integrations/fireeye/bin/'
     }
 }
 
 setup(
     name='python-cb-fireeye-connector',
-    version=version.__version__,
+    version='1.2',
+    packages=['cbopensource', 'cbopensource.connectors', 'cbopensource.connectors.fireeye'],
     url='https://github.com/carbonblack/cb-fireeye-connector',
     license='MIT',
-    author='Bit9 + Carbon Black Developer Network',
-    author_email='dev-support@bit9.com',
-    description='Carbon Black FireEye Connector',
-    long_description=__doc__,
-    packages=['cbfireeyebridge'],
+    author='Carbon Black Developer Network',
+    author_email='dev-support@carbonblack.com',
+    description=
+        'Connector between Carbon Black and Fireeye',
     data_files=data_files,
     classifiers=[
         'Development Status :: 4 - Beta',

@@ -10,7 +10,7 @@
 # Source function library.
 . /etc/rc.d/init.d/functions
 
-exec="/usr/share/cb/integrations/fireeye/cb-fireeye-connector"
+exec="/usr/share/cb/integrations/fireeye/bin/cb-fireeye-connector"
 prog="cb-fireeye-connector"
 pidfile="/var/run/cb/integrations/fireeye.pid"
 
