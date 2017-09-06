@@ -30,10 +30,10 @@ Install the Cb Response out-of-band connector to receive FireEye alerts on the C
 	4. Save the configuration file.
 6. Start the FireEye connector on the Cb Response server:
 
-		`# /etc/init.d/cb-fireeye-bridge start`
+	`# /etc/init.d/cb-fireeye-bridge start`
 7. Examine the FireEye connector log to verify that the service is running normally:
 
-		`# tail -f /var/log/cb/integrations/carbonblack_fireeye_bridge/ carbonblack_fireeye_bridge.log`
+	`# tail -f /var/log/cb/integrations/carbonblack_fireeye_bridge/ carbonblack_fireeye_bridge.log`
 8. Edit iptables on the Cb Response server to open TCP 3000 to receive FireEye alerts, and then restart it.
 	1. Enter the following:
 	
