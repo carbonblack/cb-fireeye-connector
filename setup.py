@@ -143,8 +143,8 @@ scripts = {
 
 setup(
     name='python-cb-fireeye-connector',
-    version='1.2',
-    packages=['cbopensource', 'cbopensource.connectors', 'cbopensource.connectors.fireeye'],
+    version='1.1',
+    packages=['cbfireeyebridge'],
     url='https://github.com/carbonblack/cb-fireeye-connector',
     license='MIT',
     author='Carbon Black Developer Network',

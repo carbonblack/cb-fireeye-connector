@@ -81,7 +81,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
             self.data_dir = "/usr/share/cb/integrations/fireeye/received_alerts"
 
         CbIntegrationDaemon.__init__(self, name, configfile=configfile, **kwargs)
-        self.flask_feed = cbint.utils.flaskfeed.FlaskFeed(__name__, use_wgsi_body_helper=True)
+        self.flask_feed = cbint.utils.flaskfeed.FlaskFeed(__name__)
         self.bridge_options = {}
         self.debug = False
         self.feed_name = "FireEye"
