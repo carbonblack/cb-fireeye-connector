@@ -12,58 +12,14 @@ import cbint.utils.feed
 import cbint.utils.flaskfeed
 import cbint.utils.filesystem
 import cbint.utils.cbserver
+from cbint.utils.detonation import FeedSyncRunner
 from cbint.utils.daemon import CbIntegrationDaemon
 import copy
 import re
-import threading
+
+logger = logging.getLogger(__name__)
 
 digit_re = re.compile("(\d+)")
-
-
-class FeedSyncRunner(object):
-    def __init__(self, cb_api, feed_name, feed_url, interval=1):
-        self.__cb = cb_api
-        self.__feed_name = feed_name
-        self.__interval = int(interval)
-        self.sync_needed = False
-        self.sync_supported = False
-        self.feed_url = feed_url
-        self.logger = logging.getLogger(__name__)
-
-        if cbint.utils.cbserver.is_server_at_least(self.__cb, "4.1"):
-            self.sync_supported = True
-
-        if self.sync_supported:
-            sync_thread = threading.Thread(target=self.__perform_feed_sync)
-            sync_thread.setDaemon(True)
-            sync_thread.start()
-
-    def __perform_feed_sync(self):
-        while True:
-            time.sleep(self.__interval * 60)
-
-            if self.sync_needed:
-                self.logger.info("synchronizing feed: %s" % self.__feed_name)
-                try:
-                    self.get_or_create_feed()
-                    self.__cb.feed_synchronize(self.__feed_name, False)
-                except:
-                    self.logger.exception("Exception during feed synchronization")
-                else:
-                    self.sync_needed = False
-
-    def get_or_create_feed(self):
-        feed_id = self.__cb.feed_get_id_by_name(self.__feed_name)
-        self.logger.info("Feed id for %s: %s" % (self.__feed_name, feed_id))
-        if not feed_id:
-            self.logger.info("Creating %s feed @ %s for the first time" % (self.__feed_name, self.feed_url))
-            # TODO: clarification of feed_host vs listener_address
-            result = self.__cb.feed_add_from_url(self.feed_url, True, False, False)
-
-            # TODO: defensive coding around these self.cb calls
-            feed_id = result.get('id', 0)
-
-        return feed_id
 
 
 class FeedReportBase(object):
@@ -118,7 +74,6 @@ class DedupFeedIOCReports(FeedReportBase):
 
 
 class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
-
     def __init__(self, name, configfile, **kwargs):
         if 'data_dir' in kwargs:
             self.data_dir = kwargs.pop('data_dir')
@@ -139,10 +94,11 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         self.json_feed_path = "/fireeye/json"
 
         feed_metadata = cbint.utils.feed.generate_feed(self.feed_name, summary="FireEye on-premise IOC feed",
-                    tech_data="There are no requirements to share any data with Carbon Black to use this feed.  The underlying IOC data is provided by an on-premise FireEye device",
-                    provider_url="http://www.fireeye.com/", icon_path="%s/%s" % (self.directory,
-                                                                                 self.integration_image_path),
-                    display_name=self.display_name, category="Connectors")
+                                                       tech_data="There are no requirements to share any data with Carbon Black to use this feed.  The underlying IOC data is provided by an on-premise FireEye device",
+                                                       provider_url="http://www.fireeye.com/",
+                                                       icon_path="%s/%s" % (self.directory,
+                                                                            self.integration_image_path),
+                                                       display_name=self.display_name, category="Connectors")
 
         self.feed = DedupFeedIOCReports(feed_metadata)
 
@@ -159,34 +115,34 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
     def on_start(self):
         self.debug = self.bridge_options.get('debug', "0") != "0"
         if self.debug:
-            self.logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
     def on_stopping(self):
         self.debug = self.bridge_options.get('debug', "0") != "0"
         if self.debug:
-            self.logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
     def run(self):
         self.debug = self.bridge_options.get('debug', "0") != "0"
         if self.debug:
-            self.logger.setLevel(logging.DEBUG)
+            logger.setLevel(logging.DEBUG)
 
-        self.logger.info("starting Carbon Black <-> FireEye Bridge | version %s" % cbfireeyebridge.version.__version__)
+        logger.info("starting Carbon Black <-> FireEye Bridge | version %s" % cbfireeyebridge.version.__version__)
 
-        self.logger.debug("initializing cbapi")
+        logger.debug("initializing cbapi")
         sslverify = False if self.bridge_options.get('carbonblack_server_sslverify', "0") == "0" else True
         self.cb = cbapi.CbApi(self.bridge_options['carbonblack_server_url'],
                               token=self.bridge_options['carbonblack_server_token'],
                               ssl_verify=sslverify)
 
-        self.logger.debug("starting feed synchronizer")
+        logger.debug("starting feed synchronizer")
         feed_url = "http://%s:%d%s" % (self.bridge_options["feed_host"], int(self.bridge_options["listener_port"]),
                                        self.json_feed_path)
 
         self.feed_synchronizer = FeedSyncRunner(self.cb, self.feed_name, feed_url,
                                                 interval=self.bridge_options.get('feed_sync_interval', 1))
         if not self.feed_synchronizer.sync_supported:
-            self.logger.warn("feed synchronization is not supported by the associated Carbon Black enterprise server")
+            logger.warn("feed synchronization is not supported by the associated Carbon Black enterprise server")
 
         # make data directories as required
         #
@@ -197,20 +153,20 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         # restore alerts from disk if so configured
         #
         if int(self.bridge_options.get('restore_alerts_on_restart', 0)):
-            self.logger.info("Restoring saved alerts...")
+            logger.info("Restoring saved alerts...")
             num_restored = self.restore_alerts()
             if num_restored > 0:
                 self.feed_synchronizer.sync_needed = True
-            self.logger.info("Restored %d alerts from %d on-disk files" % (len(self.feed.retrieve_feed()['reports']),
-                                                                           num_restored))
+            logger.info("Restored %d alerts from %d on-disk files" % (len(self.feed.retrieve_feed()['reports']),
+                                                                      num_restored))
 
-        self.logger.debug("starting flask")
+        logger.debug("starting flask")
         self.serve()
 
     def serve(self):
         address = self.bridge_options.get('listener_address', '0.0.0.0')
         port = self.bridge_options['listener_port']
-        self.logger.info("starting flask server: %s:%s" % (address, port))
+        logger.info("starting flask server: %s:%s" % (address, port))
         self.flask_feed.app.run(port=port, debug=self.debug,
                                 host=address, use_reloader=False)
 
@@ -229,7 +185,8 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         return self.flask_feed.generate_image_response(image_path="%s%s" % (self.directory, self.cb_image_path))
 
     def handle_integration_image_request(self):
-        return self.flask_feed.generate_image_response(image_path="%s%s" % (self.directory, self.integration_image_path))
+        return self.flask_feed.generate_image_response(
+            image_path="%s%s" % (self.directory, self.integration_image_path))
 
     def handle_posted_alert(self):
         """
@@ -363,7 +320,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
 
             if key.startswith('@'):
                 alert[key[1:]] = alert[key]
-                del(alert[key])
+                del (alert[key])
 
         return alert
 
@@ -431,7 +388,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
 
         # urls are very interesting, but include overly wide domains (google.com, hotmail.com, etc.)
         #
-        #if malwaredetected.has_key('url'):
+        # if malwaredetected.has_key('url'):
         #    print(malwaredetected['url'].split('/')[0])
         #
         # at such time as CB supports URL indicators, these URLs can become
@@ -489,7 +446,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
 
                 matches = digit_re.match(alert_filename)
                 if not matches:
-                    self.logger.warn("Saved alert '%s' did not include a valid date-time stamp" % alert_filename)
+                    logger.warn("Saved alert '%s' did not include a valid date-time stamp" % alert_filename)
                     continue
 
                 then = int(matches.group(1))
@@ -513,7 +470,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
                     self.feed.add_report(report)
 
             except Exception as e:
-                self.logger.warn("Failure processing saved alert '%s' [%s]" % (alert_filename, e))
+                logger.warn("Failure processing saved alert '%s' [%s]" % (alert_filename, e))
                 continue
 
             num_restored += 1
@@ -524,7 +481,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         if 'bridge' in self.options:
             self.bridge_options = self.options['bridge']
         else:
-            self.logger.error("configuration does not contain a [bridge] section")
+            logger.error("configuration does not contain a [bridge] section")
             return False
 
         config_valid = True
@@ -542,7 +499,7 @@ class CarbonBlackFireEyeBridge(CbIntegrationDaemon):
         if not config_valid:
             for msg in msgs:
                 sys.stderr.write("%s\n" % msg)
-                self.logger.error(msg)
+                logger.error(msg)
             return False
         else:
             return True
