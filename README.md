@@ -13,8 +13,8 @@ Install the Cb Response out-of-band connector to receive FireEye alerts on the C
 2. Configure the Cb Response open source connectors YUM repository as described in “Setting up the Open Source Connector Repository” on page 15.
 3. Verify the Yum configuration and install the FireEye connector:
 
-	`yum info python-cb-fireeye-bridge` 
-	`yum install python-cb-fireeye-bridge`
+		yum info python-cb-fireeye-connector 
+		yum install python-cb-fireeye-connector
 	
 4. In the Cb Response console interface, retrieve the API key for the user you intend to use for the FireEye integration:
 	1. On the Cb Response console, login with the account you selected. (This user must have administrative rights on the server.)
