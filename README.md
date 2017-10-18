@@ -49,9 +49,9 @@ Install the Cb Response out-of-band connector to receive FireEye alerts on the C
 
 # Start and Stop the FireEye Connector
 ## To start the FireEye connector:
-`# service /etc/init.d/cb-fireeye-bridge start`
+`# service /etc/init.d/cb-fireeye-connector start`
 ## To stop the FireEye connector:
-`# service /etc/init.d/cb-fireeye-bridge stop`
+`# service /etc/init.d/cb-fireeye-connector stop`
 
 
 # FireEye Device Configuration
