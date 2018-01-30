@@ -1,4 +1,8 @@
 # FireEye Integration
+
+**Note that this code is not supported by Carbon Black, Inc.** as FireEye has terminated the partnership with Carbon Black.
+This code is released as open source and is now community maintained.
+
 Cb Response provides integration with an on-premise FireEye, Inc. device for correlating FireEye alerts with data that is collected by Cb Response. More information about FireEye can be found at www.fireeye.com.
 To support this integration, Cb Response provides an out-of-band connector that receives alerts from the FireEye device and communicates this information to the Cb Response server through a listener on port 3000.
 Alerts are received in the form of IPv4 and DNS addresses, and MD5 hashes. The listener parses the event data from FireEye into Cb Response JSON feed format for presentation to a feed that can be made available through the Cb Response console interface.
